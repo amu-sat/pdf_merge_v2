@@ -5,29 +5,66 @@ import subprocess
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).parent
 
-DIST_DIR = PROJECT_ROOT / "dist"
-BUILD_DIR = PROJECT_ROOT / "build"
+ROOT = Path(__file__).parent
 
-ICON = PROJECT_ROOT / "resources" / "icon.ico"
+DIST = ROOT / "dist"
+BUILD = ROOT / "build"
 
-APP_NAME = "PDFMerger"
+APP_NAME = "ZipPDFMerger"
 
-MAIN_FILE = PROJECT_ROOT / "main.py"
+
+# ----------------------------------------------------------
 
 
 def remove_old_build():
 
-    for folder in (DIST_DIR, BUILD_DIR):
+    for folder in (DIST, BUILD):
 
         if folder.exists():
             shutil.rmtree(folder)
 
-    spec = PROJECT_ROOT / f"{APP_NAME}.spec"
-
-    if spec.exists():
+    for spec in ROOT.glob("*.spec"):
         spec.unlink()
+
+
+# ----------------------------------------------------------
+
+
+def find_icon():
+
+    candidates = [
+        ROOT / "resources" / "icon.ico",
+        ROOT / "resources" / "images" / "icon.ico",
+    ]
+
+    for icon in candidates:
+        if icon.exists():
+            return icon
+
+    return None
+
+
+# ----------------------------------------------------------
+
+
+def find_entry():
+
+    candidates = [
+        ROOT / "main.py",
+        ROOT / "app.py",
+    ]
+
+    for entry in candidates:
+        if entry.exists():
+            return entry
+
+    raise FileNotFoundError(
+        "Neither main.py nor app.py found."
+    )
+
+
+# ----------------------------------------------------------
 
 
 def build():
@@ -37,32 +74,50 @@ def build():
         "-m",
         "PyInstaller",
 
-        "--noconfirm",
         "--clean",
 
-        "--windowed",
+        "--noconfirm",
 
         "--onefile",
 
+        "--windowed",
+
         "--name",
         APP_NAME,
-
-        "--icon",
-        str(ICON),
-
-        "--add-data",
-        "resources;resources",
-
-        str(MAIN_FILE),
     ]
 
+    icon = find_icon()
+
+    if icon:
+
+        command.extend(
+            [
+                "--icon",
+                str(icon),
+            ]
+        )
+
+    entry = find_entry()
+
+    command.append(str(entry))
+
+    print()
+    print("=" * 60)
+    print("Running:")
+    print()
+    print(" ".join(command))
+    print("=" * 60)
+
     subprocess.run(command, check=True)
+
+
+# ----------------------------------------------------------
 
 
 def main():
 
     print("=" * 60)
-    print("Building PDF Merger")
+    print("Building ZipPDFMerger")
     print("=" * 60)
 
     remove_old_build()
@@ -75,8 +130,10 @@ def main():
     print("=" * 60)
     print()
     print("Executable:")
-    print(DIST_DIR / f"{APP_NAME}.exe")
+    print(DIST / f"{APP_NAME}.exe")
 
+
+# ----------------------------------------------------------
 
 if __name__ == "__main__":
     main()
