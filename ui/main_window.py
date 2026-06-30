@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
     QToolBar,
     QStatusBar,
     QMenuBar,
-    QApplication,
 )
 
 from core.workers import MergeWorker
@@ -269,6 +268,7 @@ class MainWindow(QMainWindow):
         self.folder_list.clear()
 
         self.progress.reset()
+        self.progress.set_current_file("")
 
     # ---------------------------------------------------------
 
@@ -290,7 +290,9 @@ class MainWindow(QMainWindow):
 
         self.output_pdf = Path(filename)
 
-        self.output_edit.setText(str(self.output_pdf))
+        self.output_edit.setText(
+        self.output_pdf.as_posix()
+        )
 
         self.settings.set_last_output_folder(
             str(self.output_pdf.parent)
@@ -321,6 +323,7 @@ class MainWindow(QMainWindow):
             return
 
         self.progress.reset()
+        self.progress.set_current_file("")
 
         self.log.clear()
 
@@ -336,7 +339,12 @@ class MainWindow(QMainWindow):
             for folder in self.input_folders
         ]
 
-        self.worker = MergeWorker(folders)
+        output = Path(self.output_edit.text())
+
+        self.worker = MergeWorker(
+            folders=folders,
+            output_file=output,
+        )
 
         self.worker.signals.scan_started.connect(
             self.on_scan_started
@@ -375,6 +383,7 @@ class MainWindow(QMainWindow):
         )
 
         self.worker.start()
+        self.statusBar().showMessage("Starting merge...")
 
     # ---------------------------------------------------------
 
@@ -517,9 +526,13 @@ class MainWindow(QMainWindow):
             action = dialog.result_action
             apply_all = dialog.apply_to_all()
 
+            self.worker.update_duplicate_decision(
+                action,
+                apply_all,
+            )
+
             self.log_message(
-                f"Duplicate action: {action} "
-                f"(Apply to all = {apply_all})"
+                f"Duplicate action selected: {action}"
             )
 
             # TODO:
@@ -537,8 +550,7 @@ class MainWindow(QMainWindow):
 
             return
 
-        if self.worker:
-            self.worker.resume()
+        
 
     # ---------------------------------------------------------
 
@@ -558,6 +570,7 @@ class MainWindow(QMainWindow):
         self.log_message(
             "Finished."
         )
+        self.worker= None
 
     # ---------------------------------------------------------
 
@@ -724,7 +737,7 @@ class MainWindow(QMainWindow):
 
                 self.worker.cancel()
 
-                self.worker.wait()
+                self.worker.wait(5000)
 
         self.save_settings()
 
